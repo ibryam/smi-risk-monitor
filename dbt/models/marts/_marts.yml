@@ -3,41 +3,89 @@ version: 2
 models:
   - name: mart_smi__stock_performance
     description: >
-      One row per stock per trading day. The primary table for time-series
-      visualizations. Includes raw OHLCV prices, daily returns, rolling volatility,
-      moving averages, drawdown, SMA crossover signals, normalized price (rebased to 100),
-      and benchmark levels for comparison.
+      The main analytics table powering the SMI Risk Monitor dashboard.
+
+      Contains one row per company per trading day (approximately 500 trading days
+      × 22 instruments = ~11,000 rows per day, ~5 million rows total).
+
+      Every row answers the question: "How did this stock perform today, how risky
+      is it, and how does it compare to the market?"
+
+      Key features:
+      - Normalized price: all stocks rebased to 100 on the same start date, so you
+        can directly compare a 90 CHF Novartis share against a 1,800 CHF Givaudan share
+      - Benchmark comparison: SMI Index and S&P 500 included on every row so Tableau
+        can plot them alongside individual stocks without any extra joins
+      - Risk metrics: rolling volatility, drawdown, and moving averages pre-calculated
+        so the dashboard queries stay fast
+      - SMA crossover signals: flags the days when a "golden cross" or "death cross"
+        occurs — momentum signals watched by equity traders
 
     columns:
       - name: date
+        description: Trading date
         tests: [not_null]
       - name: ticker
+        description: Stock ticker (e.g. NESN.SW) or benchmark index (^SSMI, ^GSPC)
         tests: [not_null]
+      - name: company_name
+        description: Company or index name
       - name: sector
+        description: Industry sector (e.g. Healthcare, Financials, Consumer Staples)
         tests: [not_null]
+      - name: row_type
+        description: Whether this row is a constituent stock or a benchmark index
       - name: normalized_price
-        description: Close price rebased to 100 on each stock's first available date
+        description: >
+          Closing price rebased to 100 on the first available date.
+          Allows direct performance comparison across all stocks regardless of price level.
         tests: [not_null]
+      - name: volatility_30d
+        description: Annualised 30-day rolling volatility — core risk measure
+      - name: drawdown_from_52w_high_pct
+        description: How far the stock is below its 52-week high (negative number)
       - name: golden_cross
-        description: 1 on the day the 30d SMA crosses above the 90d SMA
+        description: 1 on the day the 30-day average crosses above the 90-day average (bullish signal)
       - name: death_cross
-        description: 1 on the day the 30d SMA crosses below the 90d SMA
+        description: 1 on the day the 30-day average crosses below the 90-day average (bearish signal)
 
   - name: mart_smi__risk_return_summary
     description: >
-      One row per stock — aggregated across the full available period.
-      Used for the risk/return scatter plot, volatility comparisons, and
-      period return rankings. Includes CAGR, average annualized volatility,
-      max drawdown, best/worst day, and a Sharpe proxy ratio.
+      A summary scorecard for each of the 20 SMI companies — one row per stock.
+
+      Answers the fundamental question in equity investing: "Am I being compensated
+      enough for the risk I am taking?" Each stock's annualised return is shown
+      alongside its average volatility, so you can immediately see which stocks
+      delivered strong returns with low risk (top-right of a risk/return scatter plot)
+      versus those that were volatile but went nowhere.
+
+      Used by the Risk Monitor dashboard for the risk/return scatter plot,
+      volatility rankings, and period return comparisons (1 month, 3 months, YTD).
 
     columns:
       - name: ticker
+        description: Stock ticker symbol
         tests: [not_null, unique]
+      - name: company_name
+        description: Company name
+      - name: sector
+        description: Industry sector
       - name: cagr_pct
-        description: Compound annual growth rate from first to last available close
+        description: >
+          Compound Annual Growth Rate — the annualised return from the first to last
+          available trading day. This is how professional investors compare returns
+          across different time periods.
       - name: avg_volatility_30d
-        description: Mean annualized 30-day rolling volatility across full period
+        description: Average annualised volatility across the full period — measures overall riskiness
       - name: max_drawdown_pct
-        description: Largest drawdown from 52-week high seen over the full period
+        description: Worst peak-to-trough decline seen over the full period
       - name: sharpe_proxy
-        description: CAGR divided by average volatility — simplified Sharpe ratio (no risk-free rate)
+        description: >
+          Return divided by volatility — a simplified Sharpe ratio showing return per unit
+          of risk taken. Higher is better. A ratio above 1.0 is generally considered good.
+      - name: return_1m_pct
+        description: Total return over the last calendar month
+      - name: return_3m_pct
+        description: Total return over the last 3 months
+      - name: return_ytd_pct
+        description: Total return since January 1st of the current year

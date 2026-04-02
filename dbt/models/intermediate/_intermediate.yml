@@ -3,10 +3,11 @@ version: 2
 models:
   - name: int_smi__daily_returns
     description: >
-      Daily simple and log returns per SMI constituent, calculated from closing prices.
-      Log returns are preferred for statistical analysis as they are additive and
-      approximately normally distributed. First row per ticker is excluded (no prior
-      day available).
+      How much did each stock gain or lose each day?
+      This model calculates the daily percentage change in closing price for every
+      SMI company. For example, if Nestlé closed at 98 CHF yesterday and 100 CHF
+      today, the daily return is +2.04%. These return figures are the foundation
+      for all risk calculations downstream.
 
     columns:
       - name: date
@@ -14,18 +15,27 @@ models:
       - name: ticker
         tests: [not_null]
       - name: daily_return_pct
-        description: Simple percentage return vs prior trading day close
+        description: Percentage gain or loss vs the previous trading day
         tests: [not_null]
       - name: log_return_pct
-        description: Continuous (log) return vs prior trading day close
+        description: >
+          Logarithmic return — a mathematically preferred way to measure returns
+          when comparing across different time periods or running statistical analysis
 
   - name: int_smi__rolling_metrics
     description: >
-      Rolling risk and trend metrics per SMI constituent. Includes annualised
-      volatility over 30/60/90-day windows, simple moving averages (30d, 90d),
-      52-week rolling high, and drawdown from that high.
-      Volatility is annualised using sqrt(252) — the standard convention for
-      daily equity data assuming 252 trading days per year.
+      Risk and trend indicators for each SMI stock, recalculated every day.
+
+      Volatility measures how much a stock's price swings day-to-day. A stock with
+      high volatility (e.g. 40%) moves dramatically and carries more risk. Swiss blue
+      chips like Nestlé typically show lower volatility (15-20%) than smaller stocks.
+
+      Moving averages smooth out daily noise to show the underlying price trend.
+      When the 30-day average crosses above the 90-day average, it often signals
+      positive momentum (known as a "golden cross" in finance).
+
+      Drawdown shows how far a stock has fallen from its recent peak — a key measure
+      of downside risk used by portfolio managers at Swiss banks and asset managers.
 
     columns:
       - name: date
@@ -33,12 +43,16 @@ models:
       - name: ticker
         tests: [not_null]
       - name: volatility_30d
-        description: Annualised volatility of log returns over trailing 30 trading days
+        description: >
+          Annualised price volatility over the last 30 trading days.
+          Higher = more risk. Expressed as a percentage (e.g. 20 = 20% annual volatility).
       - name: volatility_90d
-        description: Annualised volatility of log returns over trailing 90 trading days
+        description: Annualised price volatility over the last 90 trading days
       - name: sma_30d
-        description: 30-day simple moving average of closing price
+        description: Average closing price over the last 30 trading days
       - name: sma_90d
-        description: 90-day simple moving average of closing price
+        description: Average closing price over the last 90 trading days
       - name: drawdown_from_52w_high_pct
-        description: Percentage decline from the 52-week rolling high (always <= 0)
+        description: >
+          How far the current price is below the highest price of the last 52 weeks.
+          Always zero or negative — e.g. -15 means the stock is 15% below its yearly peak.
