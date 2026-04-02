@@ -12,6 +12,23 @@ sources:
     loaded_at_field: ingested_at
 
     tables:
+      - name: raw_benchmark_prices
+        description: >
+          Daily OHLCV data for benchmark indices: SMI Index (^SSMI) and S&P 500 (^GSPC).
+          Stored separately from constituent stocks as benchmarks are reference data
+          with different analytical semantics.
+        columns:
+          - name: date
+            description: Trading date
+          - name: ticker
+            description: Yahoo Finance index ticker e.g. ^SSMI
+          - name: index_name
+            description: Human-readable index name
+          - name: close
+            description: Closing level of the index
+          - name: ingested_at
+            description: UTC timestamp when this row was loaded into BigQuery
+
       - name: raw_daily_prices
         description: >
           One row per stock per trading day. Contains open, high, low, close prices

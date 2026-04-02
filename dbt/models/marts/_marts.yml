@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: mart_smi__stock_performance
+    description: >
+      One row per stock per trading day. The primary table for time-series
+      visualizations. Includes raw OHLCV prices, daily returns, rolling volatility,
+      moving averages, drawdown, SMA crossover signals, normalized price (rebased to 100),
+      and benchmark levels for comparison.
+
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: ticker
+        tests: [not_null]
+      - name: sector
+        tests: [not_null]
+      - name: normalized_price
+        description: Close price rebased to 100 on each stock's first available date
+        tests: [not_null]
+      - name: golden_cross
+        description: 1 on the day the 30d SMA crosses above the 90d SMA
+      - name: death_cross
+        description: 1 on the day the 30d SMA crosses below the 90d SMA
+
+  - name: mart_smi__risk_return_summary
+    description: >
+      One row per stock — aggregated across the full available period.
+      Used for the risk/return scatter plot, volatility comparisons, and
+      period return rankings. Includes CAGR, average annualized volatility,
+      max drawdown, best/worst day, and a Sharpe proxy ratio.
+
+    columns:
+      - name: ticker
+        tests: [not_null, unique]
+      - name: cagr_pct
+        description: Compound annual growth rate from first to last available close
+      - name: avg_volatility_30d
+        description: Mean annualized 30-day rolling volatility across full period
+      - name: max_drawdown_pct
+        description: Largest drawdown from 52-week high seen over the full period
+      - name: sharpe_proxy
+        description: CAGR divided by average volatility — simplified Sharpe ratio (no risk-free rate)

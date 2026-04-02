@@ -38,6 +38,12 @@ jobs:
         working-directory: dbt
         run: dbt deps
 
+      - name: Run dbt seed
+        working-directory: dbt
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+        run: dbt seed --profiles-dir .
+
       - name: Run dbt models
         working-directory: dbt
         env:

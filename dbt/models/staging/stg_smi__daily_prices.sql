@@ -1,18 +1,10 @@
 {{
-    config(
-        materialized='incremental',
-        unique_key=['date', 'ticker'],
-        incremental_strategy='merge'
-    )
+    config(materialized='view')
 }}
 
 with source as (
 
     select * from {{ source('smi_raw', 'raw_daily_prices') }}
-
-    {% if is_incremental() %}
-        where ingested_at > (select max(ingested_at) from {{ this }})
-    {% endif %}
 
 ),
 

@@ -74,7 +74,7 @@ ABB, Alcon, Geberit, Givaudan, Holcim, Lonza, Nestlé, Novartis, Partners Group,
 - [x] GitHub Actions daily schedule
 - [x] dbt staging models
 - [x] dbt intermediate models
-- [ ] dbt mart models + custom tests
+- [x] dbt mart models + custom tests
 - [ ] Tableau Public dashboard
 - [ ] dbt docs on GitHub Pages
 
