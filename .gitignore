@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# Credentials — never commit these
+*.json
+service_account*.json
+credentials*.json
+
+# OS
+.DS_Store
+Thumbs.db
