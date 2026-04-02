@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_smi__daily_prices
+    description: >
+      Cleaned and typed daily OHLCV prices for all 20 SMI constituents.
+      Materialized as an incremental model — only new rows are processed on each run.
+      Prices are in CHF. Rows with null or non-positive prices are excluded.
+
+    columns:
+      - name: date
+        description: Trading date
+        tests:
+          - not_null
+
+      - name: ticker
+        description: Yahoo Finance ticker symbol (uppercased)
+        tests:
+          - not_null
+
+      - name: company_name
+        description: Human-readable company name
+        tests:
+          - not_null
+
+      - name: open_price
+        description: Opening price in CHF
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              strictly: true
+
+      - name: high_price
+        description: Intraday high price in CHF
+        tests:
+          - not_null
+
+      - name: low_price
+        description: Intraday low price in CHF
+        tests:
+          - not_null
+
+      - name: close_price
+        description: Closing price in CHF
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              strictly: true
+
+      - name: volume
+        description: Number of shares traded
+        tests:
+          - not_null
+
+      - name: ingested_at
+        description: UTC timestamp when this row was loaded into BigQuery
+        tests:
+          - not_null

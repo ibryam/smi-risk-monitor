@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: smi_raw
+    database: smi-risk-monitor
+    schema: smi_raw
+    description: Raw daily OHLCV data ingested from Yahoo Finance via Python pipeline
+
+    freshness:
+      warn_after: {count: 3, period: day}
+      error_after: {count: 7, period: day}
+    loaded_at_field: ingested_at
+
+    tables:
+      - name: raw_daily_prices
+        description: >
+          One row per stock per trading day. Contains open, high, low, close prices
+          and volume for all 20 SMI constituents. Loaded incrementally each weekday
+          morning by the GitHub Actions pipeline.
+        columns:
+          - name: date
+            description: Trading date (UTC)
+          - name: ticker
+            description: Yahoo Finance ticker symbol e.g. NESN.SW
+          - name: company_name
+            description: Human-readable company name
+          - name: open
+            description: Opening price in CHF
+          - name: high
+            description: Intraday high price in CHF
+          - name: low
+            description: Intraday low price in CHF
+          - name: close
+            description: Closing price in CHF
+          - name: volume
+            description: Number of shares traded
+          - name: ingested_at
+            description: UTC timestamp when this row was loaded into BigQuery
