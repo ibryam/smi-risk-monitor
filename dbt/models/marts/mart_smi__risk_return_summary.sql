@@ -64,26 +64,32 @@ price_endpoints as (
 
 ),
 
+-- First trading date of current year per ticker (for YTD)
+ytd_start as (
+
+    select
+        ticker,
+        min(date) as ytd_start_date
+    from prices
+    where extract(year from date) = extract(year from current_date())
+    group by ticker
+
+),
+
 -- Period returns at different horizons (for rankings)
 period_returns as (
 
     select
-        ticker,
-        -- Current close
-        max(case when rn_desc = 1  then close_price end)       as current_close,
-        -- ~1 month ago (21 trading days)
-        max(case when rn_desc = 22 then close_price end)       as close_1m_ago,
-        -- ~3 months ago (63 trading days)
-        max(case when rn_desc = 64 then close_price end)       as close_3m_ago,
-        -- Start of year: first trading day of January
-        max(case when extract(month from date) = 1
-                  and rn_asc = min(case when extract(month from date) = 1
-                                        then rn_asc end)
-                               over (partition by ticker)
-             then close_price end)                              as close_ytd_start
+        rp.ticker,
+        max(case when rp.rn_desc = 1  then rp.close_price end) as current_close,
+        max(case when rp.rn_desc = 22 then rp.close_price end) as close_1m_ago,
+        max(case when rp.rn_desc = 64 then rp.close_price end) as close_3m_ago,
+        max(case when rp.date = ys.ytd_start_date
+                 then rp.close_price end)                       as close_ytd_start
 
-    from ranked_prices
-    group by ticker
+    from ranked_prices      rp
+    left join ytd_start     ys on rp.ticker = ys.ticker
+    group by rp.ticker
 
 ),
 
