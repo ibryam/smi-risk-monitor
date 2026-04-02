@@ -23,6 +23,20 @@ with metrics as (
 
 ),
 
+-- Bring back OHLCV fields not carried through the metrics chain
+ohlcv as (
+
+    select
+        date,
+        ticker,
+        open_price,
+        high_price,
+        low_price,
+        volume
+    from {{ ref('stg_smi__daily_prices') }}
+
+),
+
 sectors as (
 
     select * from {{ ref('smi_sectors') }}
@@ -86,12 +100,12 @@ final as (
         s.sector,
         s.industry,
 
-        -- Raw prices
+        -- Raw prices (OHLCV — open/high/low/volume joined from staging)
         m.close_price,
-        m.high_price,
-        m.low_price,
-        m.open_price,
-        m.volume,
+        o.high_price,
+        o.low_price,
+        o.open_price,
+        o.volume,
 
         -- Returns
         m.daily_return_pct,
@@ -140,6 +154,7 @@ final as (
         )                                                       as sp500_normalized
 
     from metrics             m
+    left join ohlcv          o  on m.ticker = o.ticker and m.date = o.date
     left join sectors        s  on m.ticker = s.ticker
     left join benchmarks     b  on m.date   = b.date
     cross join benchmark_base bb

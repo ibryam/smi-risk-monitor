@@ -33,6 +33,21 @@ prices as (
 
 ),
 
+-- Rank rows per ticker by date for endpoint and period lookups
+ranked_prices as (
+
+    select
+        ticker,
+        date,
+        close_price,
+        row_number() over (partition by ticker order by date asc)  as rn_asc,
+        row_number() over (partition by ticker order by date desc) as rn_desc,
+        count(*) over (partition by ticker)                        as total_rows
+
+    from prices
+
+),
+
 -- First and last price per stock for CAGR calculation
 price_endpoints as (
 
@@ -40,11 +55,11 @@ price_endpoints as (
         ticker,
         min(date)                                               as first_date,
         max(date)                                               as last_date,
-        min_by(close_price, date)                               as first_close,
-        max_by(close_price, date)                               as last_close,
+        max(case when rn_asc  = 1 then close_price end)        as first_close,
+        max(case when rn_desc = 1 then close_price end)        as last_close,
         date_diff(max(date), min(date), day)                    as days_in_period
 
-    from prices
+    from ranked_prices
     group by ticker
 
 ),
@@ -54,36 +69,33 @@ period_returns as (
 
     select
         ticker,
+        -- Current close
+        max(case when rn_desc = 1  then close_price end)       as current_close,
+        -- ~1 month ago (21 trading days)
+        max(case when rn_desc = 22 then close_price end)       as close_1m_ago,
+        -- ~3 months ago (63 trading days)
+        max(case when rn_desc = 64 then close_price end)       as close_3m_ago,
+        -- Start of year: first trading day of January
+        max(case when extract(month from date) = 1
+                  and rn_asc = min(case when extract(month from date) = 1
+                                        then rn_asc end)
+                               over (partition by ticker)
+             then close_price end)                              as close_ytd_start
 
-        -- 1-month return
-        round(
-            safe_divide(
-                max_by(close_price, date) - min_by(close_price, date order by date desc limit 21),
-                min_by(close_price, date order by date desc limit 21)
-            ) * 100,
-            2
-        )                                                       as return_1m_pct,
-
-        -- 3-month return
-        round(
-            safe_divide(
-                max_by(close_price, date) - min_by(close_price, date order by date desc limit 63),
-                min_by(close_price, date order by date desc limit 63)
-            ) * 100,
-            2
-        )                                                       as return_3m_pct,
-
-        -- YTD return (since Jan 1 of current year)
-        round(
-            safe_divide(
-                max_by(close_price, date) - min_by(close_price, case when extract(month from date) = 1 and extract(day from date) <= 5 then date end),
-                min_by(close_price, case when extract(month from date) = 1 and extract(day from date) <= 5 then date end)
-            ) * 100,
-            2
-        )                                                       as return_ytd_pct
-
-    from prices
+    from ranked_prices
     group by ticker
+
+),
+
+period_return_calcs as (
+
+    select
+        ticker,
+        round(safe_divide(current_close - close_1m_ago,  close_1m_ago)  * 100, 2) as return_1m_pct,
+        round(safe_divide(current_close - close_3m_ago,  close_3m_ago)  * 100, 2) as return_3m_pct,
+        round(safe_divide(current_close - close_ytd_start, close_ytd_start) * 100, 2) as return_ytd_pct
+
+    from period_returns
 
 ),
 
@@ -166,5 +178,5 @@ select
     pr.return_1m_pct,
     pr.return_3m_pct,
     pr.return_ytd_pct
-from with_sharpe         w
-left join period_returns pr on w.ticker = pr.ticker
+from with_sharpe            w
+left join period_return_calcs pr on w.ticker = pr.ticker
