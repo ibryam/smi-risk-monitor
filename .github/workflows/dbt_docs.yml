@@ -1,0 +1,74 @@
+name: Deploy dbt Docs
+
+on:
+  workflow_run:
+    workflows: ["Daily SMI Ingestion"]
+    types: [completed]
+  workflow_dispatch:    # allow manual trigger
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt
+        run: pip install dbt-bigquery==1.9.0
+
+      - name: Install dbt packages
+        working-directory: dbt
+        run: dbt deps
+
+      - name: Write GCP credentials
+        run: echo '${{ secrets.GCP_SA_KEY }}' > /tmp/sa_key.json
+
+      - name: Write dbt profiles
+        run: cp dbt/profiles.ci.yml dbt/profiles.yml
+
+      - name: Generate dbt docs
+        working-directory: dbt
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+        run: dbt docs generate --profiles-dir .
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/sa_key.json
+
+      - name: Move docs to publish folder
+        run: |
+          mkdir -p /tmp/dbt_docs
+          cp dbt/target/index.html /tmp/dbt_docs/
+          cp dbt/target/catalog.json /tmp/dbt_docs/
+          cp dbt/target/manifest.json /tmp/dbt_docs/
+          cp dbt/target/graph.gpickle /tmp/dbt_docs/ 2>/dev/null || true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/dbt_docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
