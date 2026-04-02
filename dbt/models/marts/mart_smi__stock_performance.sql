@@ -226,7 +226,7 @@ select
     null                        as smi_index_normalized,
     null                        as sp500_normalized
 from {{ ref('stg_smi__benchmarks') }}  b
-cross join (
+inner join (
     select
         ticker,
         min(close_price) over (partition by ticker order by date rows between unbounded preceding and unbounded following) as base_close
