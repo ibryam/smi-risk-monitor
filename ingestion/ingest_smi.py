@@ -1,14 +1,17 @@
 """
 SMI daily equity ingestion: Yahoo Finance -> BigQuery (raw layer)
 
-Pulls OHLCV data for all SMI constituents and loads it into
-BigQuery table: smi_raw.raw_daily_prices
+Pulls OHLCV data for all SMI constituents and benchmark indices, loading into
+separate BigQuery tables:
+  - smi_raw.raw_daily_prices      — SMI constituent stocks
+  - smi_raw.raw_benchmark_prices  — SMI index and S&P 500
 
 Run manually:   python ingestion/ingest_smi.py
 Run via CI:     GitHub Actions calls this daily on market days
 """
 
 import os
+import time
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -18,11 +21,13 @@ from google.cloud import bigquery
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-PROJECT_ID   = "smi-risk-monitor"
-DATASET_ID   = "smi_raw"
-TABLE_ID     = "raw_daily_prices"
+PROJECT_ID        = "smi-risk-monitor"
+DATASET_ID        = "smi_raw"
+PRICES_TABLE      = "raw_daily_prices"
+BENCHMARKS_TABLE  = "raw_benchmark_prices"
+
 # Local: path to service account JSON. CI: set GOOGLE_APPLICATION_CREDENTIALS env var instead.
-CREDENTIALS  = os.environ.get(
+CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS",
     os.path.join(os.path.dirname(__file__), "..", "smi-risk-monitor-9a782e9e17af.json"),
 )
@@ -50,6 +55,35 @@ SMI_TICKERS = {
     "ZURN.SW":  "Zurich Insurance",
 }
 
+BENCHMARK_TICKERS = {
+    "^SSMI":  "SMI Index",
+    "^GSPC":  "S&P 500",
+}
+
+PRICES_SCHEMA = [
+    bigquery.SchemaField("date",         "DATE"),
+    bigquery.SchemaField("ticker",        "STRING"),
+    bigquery.SchemaField("company_name",  "STRING"),
+    bigquery.SchemaField("open",          "FLOAT64"),
+    bigquery.SchemaField("high",          "FLOAT64"),
+    bigquery.SchemaField("low",           "FLOAT64"),
+    bigquery.SchemaField("close",         "FLOAT64"),
+    bigquery.SchemaField("volume",        "INT64"),
+    bigquery.SchemaField("ingested_at",   "TIMESTAMP"),
+]
+
+BENCHMARKS_SCHEMA = [
+    bigquery.SchemaField("date",          "DATE"),
+    bigquery.SchemaField("ticker",        "STRING"),
+    bigquery.SchemaField("index_name",    "STRING"),
+    bigquery.SchemaField("open",          "FLOAT64"),
+    bigquery.SchemaField("high",          "FLOAT64"),
+    bigquery.SchemaField("low",           "FLOAT64"),
+    bigquery.SchemaField("close",         "FLOAT64"),
+    bigquery.SchemaField("volume",        "INT64"),
+    bigquery.SchemaField("ingested_at",   "TIMESTAMP"),
+]
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -67,11 +101,11 @@ def get_bq_client():
     return bigquery.Client(project=PROJECT_ID, credentials=creds)
 
 
-def get_last_loaded_date(client: bigquery.Client) -> str | None:
-    """Return the most recent date already in BigQuery, or None if table is empty."""
+def get_last_loaded_date(client: bigquery.Client, table_id: str) -> str | None:
+    """Return the most recent date already in a given BigQuery table."""
     query = f"""
         SELECT MAX(date) AS max_date
-        FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`
+        FROM `{PROJECT_ID}.{DATASET_ID}.{table_id}`
     """
     try:
         result = client.query(query).result()
@@ -81,13 +115,13 @@ def get_last_loaded_date(client: bigquery.Client) -> str | None:
         return None  # Table doesn't exist yet — first run
 
 
-def fetch_prices(start_date: str, end_date: str) -> pd.DataFrame:
-    """Pull OHLCV from Yahoo Finance for all SMI tickers."""
-    tickers = list(SMI_TICKERS.keys())
-    log.info(f"Fetching {len(tickers)} tickers from {start_date} to {end_date}")
+def fetch_ohlcv(tickers: dict, start_date: str, end_date: str, name_field: str) -> pd.DataFrame:
+    """Pull OHLCV from Yahoo Finance for a given dict of {ticker: name}."""
+    ticker_list = list(tickers.keys())
+    log.info(f"Fetching {len(ticker_list)} tickers from {start_date} to {end_date}")
 
     raw = yf.download(
-        tickers=tickers,
+        tickers=ticker_list,
         start=start_date,
         end=end_date,
         auto_adjust=True,
@@ -96,11 +130,12 @@ def fetch_prices(start_date: str, end_date: str) -> pd.DataFrame:
     )
 
     rows = []
-    for ticker in tickers:
+    for ticker in ticker_list:
         try:
-            df = raw[ticker].dropna(how="all").reset_index()
-            df["ticker"]      = ticker
-            df["company_name"] = SMI_TICKERS[ticker]
+            # yfinance returns a flat DataFrame for a single ticker
+            df = (raw[ticker] if len(ticker_list) > 1 else raw).dropna(how="all").reset_index()
+            df["ticker"]    = ticker
+            df[name_field]  = tickers[ticker]
             df = df.rename(columns={
                 "Date":   "date",
                 "Open":   "open",
@@ -110,12 +145,12 @@ def fetch_prices(start_date: str, end_date: str) -> pd.DataFrame:
                 "Volume": "volume",
             })
             df["ingested_at"] = datetime.now(timezone.utc)
-            rows.append(df[["date", "ticker", "company_name", "open", "high", "low", "close", "volume", "ingested_at"]])
+            rows.append(df[["date", "ticker", name_field, "open", "high", "low", "close", "volume", "ingested_at"]])
         except Exception as e:
             log.warning(f"Skipping {ticker}: {e}")
 
     if not rows:
-        log.warning("No data fetched — market may be closed or all tickers failed")
+        log.warning("No data fetched")
         return pd.DataFrame()
 
     combined = pd.concat(rows, ignore_index=True)
@@ -124,28 +159,42 @@ def fetch_prices(start_date: str, end_date: str) -> pd.DataFrame:
     return combined
 
 
-def load_to_bigquery(client: bigquery.Client, df: pd.DataFrame):
-    """Append new rows to BigQuery table, creating it if it doesn't exist."""
-    table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
-
+def load_to_bigquery(client: bigquery.Client, df: pd.DataFrame, table_id: str, schema: list):
+    """Append new rows to a BigQuery table, creating it if it doesn't exist."""
+    table_ref = f"{PROJECT_ID}.{DATASET_ID}.{table_id}"
     job_config = bigquery.LoadJobConfig(
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-        schema=[
-            bigquery.SchemaField("date",         "DATE"),
-            bigquery.SchemaField("ticker",        "STRING"),
-            bigquery.SchemaField("company_name",  "STRING"),
-            bigquery.SchemaField("open",          "FLOAT64"),
-            bigquery.SchemaField("high",          "FLOAT64"),
-            bigquery.SchemaField("low",           "FLOAT64"),
-            bigquery.SchemaField("close",         "FLOAT64"),
-            bigquery.SchemaField("volume",        "INT64"),
-            bigquery.SchemaField("ingested_at",   "TIMESTAMP"),
-        ],
+        schema=schema,
     )
-
     job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
     job.result()
     log.info(f"Loaded {len(df)} rows into {table_ref}")
+
+
+def run_pipeline(client, table_id: str, tickers: dict, schema: list, name_field: str):
+    """Full incremental pipeline for a single table."""
+    last_date = get_last_loaded_date(client, table_id)
+
+    if last_date:
+        start_date = (datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        log.info(f"[{table_id}] Incremental run — loading from {start_date}")
+    else:
+        start_date = (datetime.now(timezone.utc) - timedelta(days=730)).strftime("%Y-%m-%d")
+        log.info(f"[{table_id}] First run — loading full history from {start_date}")
+
+    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if start_date >= end_date:
+        log.info(f"[{table_id}] Already up to date — nothing to load")
+        return
+
+    df = fetch_ohlcv(tickers, start_date, end_date, name_field)
+
+    if df.empty:
+        log.info(f"[{table_id}] No new data to load")
+        return
+
+    load_to_bigquery(client, df, table_id, schema)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -153,30 +202,15 @@ def load_to_bigquery(client: bigquery.Client, df: pd.DataFrame):
 def main():
     client = get_bq_client()
 
-    last_date = get_last_loaded_date(client)
+    log.info("── SMI constituents ──────────────────────────────")
+    run_pipeline(client, PRICES_TABLE,     SMI_TICKERS,       PRICES_SCHEMA,     "company_name")
 
-    if last_date:
-        # Incremental: start from day after last loaded date
-        start_date = (datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-        log.info(f"Incremental run — loading from {start_date}")
-    else:
-        # First run: load 2 years of history
-        start_date = (datetime.now(timezone.utc) - timedelta(days=730)).strftime("%Y-%m-%d")
-        log.info(f"First run — loading full history from {start_date}")
+    log.info("Waiting 60s before benchmark pull to avoid Yahoo rate limits")
+    time.sleep(60)
 
-    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    log.info("── Benchmarks ────────────────────────────────────")
+    run_pipeline(client, BENCHMARKS_TABLE, BENCHMARK_TICKERS, BENCHMARKS_SCHEMA, "index_name")
 
-    if start_date >= end_date:
-        log.info("Already up to date — nothing to load")
-        return
-
-    df = fetch_prices(start_date, end_date)
-
-    if df.empty:
-        log.info("No new data to load")
-        return
-
-    load_to_bigquery(client, df)
     log.info("Ingestion complete")
 
 

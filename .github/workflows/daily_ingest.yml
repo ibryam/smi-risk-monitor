@@ -26,10 +26,29 @@ jobs:
       - name: Write GCP credentials
         run: echo '${{ secrets.GCP_SA_KEY }}' > /tmp/sa_key.json
 
-      - name: Run ingestion
+      - name: Run ingestion — SMI stocks + benchmarks
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
         run: python ingestion/ingest_smi.py
+
+      - name: Install dbt dependencies
+        run: pip install dbt-bigquery==1.9.0
+
+      - name: Install dbt packages
+        working-directory: dbt
+        run: dbt deps
+
+      - name: Run dbt models
+        working-directory: dbt
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+        run: dbt run --profiles-dir .
+
+      - name: Run dbt tests
+        working-directory: dbt
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+        run: dbt test --profiles-dir .
 
       - name: Clean up credentials
         if: always()

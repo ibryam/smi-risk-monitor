@@ -36,4 +36,14 @@ This document explains the key design choices made in this project and the reaso
 
 ---
 
+---
+
+## Benchmarks in a Separate Table
+
+**Decision:** Store benchmark indices (`^SSMI`, `^GSPC`) in `raw_benchmark_prices`, separate from `raw_daily_prices` which holds SMI constituent stocks.
+
+**Reason:** Benchmarks are reference data; stocks are entity data. They serve different analytical purposes and have different semantics — volume for an index is meaningless, while volume for a stock is a key signal. Mixing them into one table with a `type` column saves a few lines of code but creates ambiguity in every downstream query. In a production data warehouse at a bank or asset manager, this separation would be non-negotiable. The explicit join in the mart layer makes the relationship intentional and readable.
+
+---
+
 *This document is updated as new decisions are made.*

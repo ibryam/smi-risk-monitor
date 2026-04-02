@@ -1,0 +1,21 @@
+ticker,company_name,sector,industry,country,currency
+ABBN.SW,ABB,Industrials,Electrical Equipment,Switzerland,CHF
+ALC.SW,Alcon,Healthcare,Medical Devices,Switzerland,CHF
+GEBN.SW,Geberit,Industrials,Building Products,Switzerland,CHF
+GIVN.SW,Givaudan,Materials,Specialty Chemicals,Switzerland,CHF
+HOLN.SW,Holcim,Materials,Construction Materials,Switzerland,CHF
+LONN.SW,Lonza,Healthcare,Life Sciences Tools,Switzerland,CHF
+NESN.SW,Nestle,Consumer Staples,Packaged Foods,Switzerland,CHF
+NOVN.SW,Novartis,Healthcare,Pharmaceuticals,Switzerland,CHF
+PGHN.SW,Partners Group,Financials,Asset Management,Switzerland,CHF
+CFR.SW,Richemont,Consumer Discretionary,Luxury Goods,Switzerland,CHF
+ROG.SW,Roche,Healthcare,Pharmaceuticals,Switzerland,CHF
+SDZ.SW,Sandoz,Healthcare,Pharmaceuticals,Switzerland,CHF
+SGSN.SW,SGS,Industrials,Professional Services,Switzerland,CHF
+SIKA.SW,Sika,Materials,Specialty Chemicals,Switzerland,CHF
+SOON.SW,Sonova,Healthcare,Medical Devices,Switzerland,CHF
+STMN.SW,Straumann,Healthcare,Medical Devices,Switzerland,CHF
+SLHN.SW,Swiss Life,Financials,Insurance,Switzerland,CHF
+SREN.SW,Swiss Re,Financials,Reinsurance,Switzerland,CHF
+UBSG.SW,UBS,Financials,Banking,Switzerland,CHF
+ZURN.SW,Zurich Insurance,Financials,Insurance,Switzerland,CHF
