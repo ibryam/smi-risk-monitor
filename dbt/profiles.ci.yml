@@ -5,7 +5,7 @@ smi_risk_monitor:
       type: bigquery
       method: service-account
       project: smi-risk-monitor
-      dataset: smi_marts
+      dataset: smi
       keyfile: /tmp/sa_key.json
       threads: 4
       timeout_seconds: 300
