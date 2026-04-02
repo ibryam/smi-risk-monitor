@@ -21,7 +21,11 @@ from google.cloud import bigquery
 PROJECT_ID   = "smi-risk-monitor"
 DATASET_ID   = "smi_raw"
 TABLE_ID     = "raw_daily_prices"
-CREDENTIALS  = os.path.join(os.path.dirname(__file__), "..", "smi-risk-monitor-9a782e9e17af.json")
+# Local: path to service account JSON. CI: set GOOGLE_APPLICATION_CREDENTIALS env var instead.
+CREDENTIALS  = os.environ.get(
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    os.path.join(os.path.dirname(__file__), "..", "smi-risk-monitor-9a782e9e17af.json"),
+)
 
 SMI_TICKERS = {
     "ABBN.SW":  "ABB",

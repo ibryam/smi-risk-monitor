@@ -1,0 +1,36 @@
+name: Daily SMI Ingestion
+
+on:
+  schedule:
+    - cron: "0 8 * * 1-5"   # 08:00 UTC = 09:00 CET, Mon–Fri after SIX opens
+  workflow_dispatch:          # allow manual trigger from GitHub UI
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: ingestion/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r ingestion/requirements.txt
+
+      - name: Write GCP credentials
+        run: echo '${{ secrets.GCP_SA_KEY }}' > /tmp/sa_key.json
+
+      - name: Run ingestion
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+        run: python ingestion/ingest_smi.py
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/sa_key.json
