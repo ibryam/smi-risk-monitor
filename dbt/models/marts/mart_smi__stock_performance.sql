@@ -163,4 +163,73 @@ final as (
 
 )
 
-select * from final
+-- Stock rows
+select
+    date,
+    ticker,
+    company_name,
+    sector,
+    industry,
+    'stock'                     as row_type,
+    close_price,
+    high_price,
+    low_price,
+    open_price,
+    volume,
+    daily_return_pct,
+    log_return_pct,
+    sma_30d,
+    sma_90d,
+    golden_cross,
+    death_cross,
+    volatility_30d,
+    volatility_60d,
+    volatility_90d,
+    high_52w,
+    drawdown_from_52w_high_pct,
+    normalized_price,
+    smi_index_close,
+    sp500_close,
+    smi_index_normalized,
+    sp500_normalized
+from final
+
+union all
+
+-- Benchmark rows — so Tableau can treat ^SSMI and ^GSPC as lines on the same chart
+select
+    b.date,
+    b.ticker,
+    b.index_name                as company_name,
+    'Benchmark'                 as sector,
+    'Benchmark'                 as industry,
+    'benchmark'                 as row_type,
+    b.close_price,
+    b.high_price,
+    b.low_price,
+    b.open_price,
+    b.volume,
+    null                        as daily_return_pct,
+    null                        as log_return_pct,
+    null                        as sma_30d,
+    null                        as sma_90d,
+    0                           as golden_cross,
+    0                           as death_cross,
+    null                        as volatility_30d,
+    null                        as volatility_60d,
+    null                        as volatility_90d,
+    null                        as high_52w,
+    null                        as drawdown_from_52w_high_pct,
+    round(safe_divide(b.close_price, bb.base_close) * 100, 4) as normalized_price,
+    null                        as smi_index_close,
+    null                        as sp500_close,
+    null                        as smi_index_normalized,
+    null                        as sp500_normalized
+from {{ ref('stg_smi__benchmarks') }}  b
+cross join (
+    select
+        ticker,
+        min(close_price) over (partition by ticker order by date rows between unbounded preceding and unbounded following) as base_close
+    from {{ ref('stg_smi__benchmarks') }}
+    qualify row_number() over (partition by ticker order by date) = 1
+)                                      bb on b.ticker = bb.ticker
