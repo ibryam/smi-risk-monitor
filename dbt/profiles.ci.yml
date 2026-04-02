@@ -1,0 +1,12 @@
+smi_risk_monitor:
+  target: ci
+  outputs:
+    ci:
+      type: bigquery
+      method: service-account
+      project: smi-risk-monitor
+      dataset: smi_marts
+      keyfile: /tmp/sa_key.json
+      threads: 4
+      timeout_seconds: 300
+      location: EU

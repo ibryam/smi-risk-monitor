@@ -39,21 +39,7 @@ jobs:
         run: dbt deps
 
       - name: Write dbt profiles
-        run: |
-          cat > dbt/profiles.yml << 'EOF'
-          smi_risk_monitor:
-            target: ci
-            outputs:
-              ci:
-                type: bigquery
-                method: service-account
-                project: smi-risk-monitor
-                dataset: smi_marts
-                keyfile: /tmp/sa_key.json
-                threads: 4
-                timeout_seconds: 300
-                location: EU
-          EOF
+        run: cp dbt/profiles.ci.yml dbt/profiles.yml
 
       - name: Run dbt seed
         working-directory: dbt
