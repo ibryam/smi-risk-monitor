@@ -73,7 +73,7 @@ ABB, Alcon, Geberit, Givaudan, Holcim, Lonza, Nestlé, Novartis, Partners Group,
 - [x] Python ingestion script (yfinance → BigQuery)
 - [x] GitHub Actions daily schedule
 - [x] dbt staging models
-- [ ] dbt intermediate models
+- [x] dbt intermediate models
 - [ ] dbt mart models + custom tests
 - [ ] Tableau Public dashboard
 - [ ] dbt docs on GitHub Pages
