@@ -66,14 +66,20 @@ benchmark_base as (
 
 ),
 
--- First close price per stock for normalization base
+-- First close price per stock for normalization base (price on the earliest available date)
 stock_base as (
 
     select
         ticker,
-        min(close_price) over (partition by ticker order by date rows between unbounded preceding and unbounded following) as base_close,
-        min(date)        over (partition by ticker order by date rows between unbounded preceding and unbounded following) as base_date
-    from {{ ref('stg_smi__daily_prices') }}
+        max(case when rn = 1 then close_price end) as base_close
+    from (
+        select
+            ticker,
+            close_price,
+            row_number() over (partition by ticker order by date asc) as rn
+        from {{ ref('stg_smi__daily_prices') }}
+    )
+    group by ticker
 
 ),
 
@@ -229,7 +235,13 @@ from {{ ref('stg_smi__benchmarks') }}  b
 inner join (
     select
         ticker,
-        min(close_price) over (partition by ticker order by date rows between unbounded preceding and unbounded following) as base_close
-    from {{ ref('stg_smi__benchmarks') }}
-    qualify row_number() over (partition by ticker order by date) = 1
+        max(case when rn = 1 then close_price end) as base_close
+    from (
+        select
+            ticker,
+            close_price,
+            row_number() over (partition by ticker order by date asc) as rn
+        from {{ ref('stg_smi__benchmarks') }}
+    )
+    group by ticker
 )                                      bb on b.ticker = bb.ticker
