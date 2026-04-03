@@ -1,106 +1,78 @@
 # How This Project Works
 
-This page explains the data pipeline behind the SMI Risk Monitor in plain language — no prior data engineering knowledge required.
+A simple explanation of the data pipeline behind the SMI Risk Monitor.
 
 ---
 
-## The Big Picture
+## What happens every morning
 
-Every weekday morning, this system automatically:
-1. Downloads fresh stock prices from Yahoo Finance
-2. Stores them in a cloud database (Google BigQuery)
-3. Calculates risk metrics and performance indicators
-4. Makes the results available to the Tableau dashboard
+Every weekday at 09:00 Swiss time, this project runs automatically:
 
-Nobody needs to do anything manually. The whole process runs on a scheduled timer in GitHub.
+1. Downloads the latest stock prices from Yahoo Finance
+2. Saves them to a cloud database (Google BigQuery)
+3. Calculates risk and performance numbers
+4. Updates the Tableau dashboard
+
+No manual work needed. Everything runs on a timer inside GitHub.
 
 ---
 
-## The Pipeline Step by Step
+## The pipeline
 
 ```
-Yahoo Finance (free stock data)
-          │
-          ▼
-    Python Script
-    (runs every weekday at 09:00 CET via GitHub Actions)
-          │
-          ▼
-   Google BigQuery
-   ┌─────────────────────────────────────┐
-   │  RAW LAYER                          │
-   │  raw_daily_prices                   │  ← Stock prices exactly as downloaded
-   │  raw_benchmark_prices               │  ← SMI Index + S&P 500 levels
-   └─────────────────────────────────────┘
-          │
-          ▼  dbt transforms the data through 3 layers
-   ┌─────────────────────────────────────┐
-   │  STAGING LAYER                      │
-   │  stg_smi__daily_prices              │  ← Prices cleaned and validated
-   │  stg_smi__benchmarks                │  ← Benchmarks cleaned and validated
-   └─────────────────────────────────────┘
-          │
-          ▼
-   ┌─────────────────────────────────────┐
-   │  INTERMEDIATE LAYER                 │
-   │  int_smi__daily_returns             │  ← Daily % gains and losses calculated
-   │  int_smi__rolling_metrics           │  ← Volatility, moving averages, drawdown
-   └─────────────────────────────────────┘
-          │
-          ▼
-   ┌─────────────────────────────────────┐
-   │  MARTS LAYER  ← Tableau reads here  │
-   │  mart_smi__stock_performance        │  ← Full time-series for all charts
-   │  mart_smi__risk_return_summary      │  ← One-row-per-stock risk scorecard
-   └─────────────────────────────────────┘
-          │
-          ▼
-   Tableau Public Dashboard
+Yahoo Finance
+(free stock price data)
+        │
+        ▼
+Python script runs every weekday morning
+        │
+        ▼
+Google BigQuery — 4 layers of data:
+
+  smi_raw          ← prices saved exactly as downloaded
+        │
+  smi_staging      ← prices checked and cleaned
+        │
+  smi_intermediate ← performance and risk numbers calculated
+        │
+  smi_marts        ← final tables, ready for the dashboard
+        │
+        ▼
+Tableau dashboard
 ```
 
 ---
 
-## Why Three Layers?
+## Why four layers?
 
-Each layer has a specific purpose — this is industry-standard practice at banks and data-driven companies:
+Each layer has one job. This makes the system easier to fix when something goes wrong.
 
-| Layer | Purpose | Analogy |
-|-------|---------|---------|
-| **Raw** | Store data exactly as received, never modified | Original receipts in a filing cabinet |
-| **Staging** | Clean, validate, and standardise the data | Checking receipts and correcting errors |
-| **Intermediate** | Calculate derived metrics | An accountant running the numbers |
-| **Marts** | Business-ready tables optimised for analysis | A polished report ready to present |
+| Layer | Job |
+|-------|-----|
+| Raw | Save the original data, never change it |
+| Staging | Check for errors, fix column names and types |
+| Intermediate | Calculate daily returns, volatility, drawdowns |
+| Marts | Combine everything into clean tables for the dashboard |
 
-This separation means that if something goes wrong at any stage, you can fix it and rerun just that stage — the raw data is always preserved.
-
----
-
-## Data Sources
-
-| Source | What it provides | Cost |
-|--------|-----------------|------|
-| Yahoo Finance (`yfinance`) | Daily OHLCV prices for 20 SMI stocks + 2 indices | Free |
-| Google BigQuery | Cloud data warehouse storage and compute | Free tier |
-| GitHub Actions | Scheduled pipeline execution | Free (public repo) |
+If the calculation logic changes, only the intermediate and mart layers need to be updated. The raw data stays untouched.
 
 ---
 
-## Data Coverage
+## What stocks are tracked
 
-- **20 SMI constituent stocks**: ABB, Alcon, Geberit, Givaudan, Holcim, Lonza, Nestlé, Novartis, Partners Group, Richemont, Roche, Sandoz, SGS, Sika, Sonova, Straumann, Swiss Life, Swiss Re, UBS, Zurich Insurance
-- **2 benchmark indices**: SMI Index (^SSMI), S&P 500 (^GSPC)
-- **History**: 2 years of daily data
-- **Refresh**: Every weekday morning
+**20 SMI companies:** ABB, Alcon, Geberit, Givaudan, Holcim, Lonza, Nestlé, Novartis, Partners Group, Richemont, Roche, Sandoz, SGS, Sika, Sonova, Straumann, Swiss Life, Swiss Re, UBS, Zurich Insurance
+
+**2 market benchmarks:** SMI Index, S&P 500
+
+**History:** 2 years of daily data, updated every weekday
 
 ---
 
-## How to Read the dbt DAG
+## How to read the data model diagram
 
-When you open the interactive data lineage graph, you will see:
+The interactive diagram at [ibryam.github.io/smi-risk-monitor](https://ibryam.github.io/smi-risk-monitor) shows how data moves through the project.
 
-- **Green nodes** = source tables (raw data from Yahoo Finance)
-- **Blue nodes** = transformed models (the work dbt does)
-- **Arrows** = data flows from left to right
-- **Click any node** to read a plain-English description of what that model does
-
-The two rightmost nodes (`mart_smi__stock_performance` and `mart_smi__risk_return_summary`) are what the Tableau dashboard reads from.
+- Each box is a table or view in the database
+- Arrows show where the data comes from
+- Data flows left to right — raw data on the left, dashboard tables on the right
+- Click any box to read what it contains

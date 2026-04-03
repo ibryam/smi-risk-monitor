@@ -4,7 +4,7 @@ sources:
   - name: smi_raw
     database: smi-risk-monitor
     schema: smi_raw
-    description: Raw daily OHLCV data ingested from Yahoo Finance via Python pipeline
+    description: Raw stock price data downloaded from Yahoo Finance. Nothing is changed at this stage.
 
     freshness:
       warn_after: {count: 3, period: day}
@@ -14,42 +14,42 @@ sources:
     tables:
       - name: raw_benchmark_prices
         description: >
-          Daily OHLCV data for benchmark indices: SMI Index (^SSMI) and S&P 500 (^GSPC).
-          Stored separately from constituent stocks as benchmarks are reference data
-          with different analytical semantics.
+          Daily price data for the SMI Index and S&P 500.
+          Stored separately from individual stocks because index data is used
+          only for comparison — it is not a company you can invest in directly.
         columns:
           - name: date
             description: Trading date
           - name: ticker
-            description: Yahoo Finance index ticker e.g. ^SSMI
+            description: Index symbol (e.g. ^SSMI for the SMI Index)
           - name: index_name
-            description: Human-readable index name
+            description: Index name (e.g. SMI Index, S&P 500)
           - name: close
-            description: Closing level of the index
+            description: Index level at market close
           - name: ingested_at
-            description: UTC timestamp when this row was loaded into BigQuery
+            description: When this record was saved to the database
 
       - name: raw_daily_prices
         description: >
-          One row per stock per trading day. Contains open, high, low, close prices
-          and volume for all 20 SMI constituents. Loaded incrementally each weekday
-          morning by the GitHub Actions pipeline.
+          Daily stock prices for all 20 SMI companies.
+          One row per company per trading day.
+          Updated every weekday morning by the automated pipeline.
         columns:
           - name: date
-            description: Trading date (UTC)
+            description: Trading date
           - name: ticker
-            description: Yahoo Finance ticker symbol e.g. NESN.SW
+            description: Stock symbol used by Yahoo Finance (e.g. NESN.SW for Nestlé)
           - name: company_name
-            description: Human-readable company name
+            description: Company name
           - name: open
-            description: Opening price in CHF
+            description: Price at market open in CHF
           - name: high
-            description: Intraday high price in CHF
+            description: Highest price of the day in CHF
           - name: low
-            description: Intraday low price in CHF
+            description: Lowest price of the day in CHF
           - name: close
-            description: Closing price in CHF
+            description: Price at market close in CHF
           - name: volume
-            description: Number of shares traded
+            description: Number of shares traded during the day
           - name: ingested_at
-            description: UTC timestamp when this row was loaded into BigQuery
+            description: When this record was saved to the database

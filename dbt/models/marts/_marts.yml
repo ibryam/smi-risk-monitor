@@ -3,68 +3,62 @@ version: 2
 models:
   - name: mart_smi__stock_performance
     description: >
-      The main analytics table powering the SMI Risk Monitor dashboard.
+      The main table used by the dashboard. One row per stock per trading day.
 
-      Contains one row per company per trading day (approximately 500 trading days
-      × 22 instruments = ~11,000 rows per day, ~5 million rows total).
+      This table answers the question: how did each stock perform today,
+      how risky is it, and how does it compare to the market?
 
-      Every row answers the question: "How did this stock perform today, how risky
-      is it, and how does it compare to the market?"
+      All 20 SMI stocks and both benchmarks (SMI Index, S&P 500) are included.
+      Stocks are marked as row_type = 'stock', benchmarks as 'benchmark'.
 
-      Key features:
-      - Normalized price: all stocks rebased to 100 on the same start date, so you
-        can directly compare a 90 CHF Novartis share against a 1,800 CHF Givaudan share
-      - Benchmark comparison: SMI Index and S&P 500 included on every row so Tableau
-        can plot them alongside individual stocks without any extra joins
-      - Risk metrics: rolling volatility, drawdown, and moving averages pre-calculated
-        so the dashboard queries stay fast
-      - SMA crossover signals: flags the days when a "golden cross" or "death cross"
-        occurs — momentum signals watched by equity traders
+      The normalized price makes it easy to compare stocks with very different
+      price levels. For example, Givaudan trades around 3,500 CHF while Sandoz
+      trades around 30 CHF. By starting both at 100 on the same date, you can
+      directly compare their performance on one chart.
 
     columns:
       - name: date
         description: Trading date
         tests: [not_null]
       - name: ticker
-        description: Stock ticker (e.g. NESN.SW) or benchmark index (^SSMI, ^GSPC)
+        description: Stock symbol or index symbol
         tests: [not_null]
       - name: company_name
         description: Company or index name
       - name: sector
-        description: Industry sector (e.g. Healthcare, Financials, Consumer Staples)
+        description: Industry sector (e.g. Healthcare, Financials)
         tests: [not_null]
       - name: row_type
-        description: Whether this row is a constituent stock or a benchmark index
+        description: Either 'stock' for SMI companies or 'benchmark' for market indices
       - name: normalized_price
         description: >
-          Closing price rebased to 100 on the first available date.
-          Allows direct performance comparison across all stocks regardless of price level.
+          Price rebased to 100 on the first available date.
+          Makes it easy to compare stocks on the same chart regardless of their price.
         tests: [not_null]
       - name: volatility_30d
-        description: Annualised 30-day rolling volatility — core risk measure
+        description: How much the price moved over the last 30 days — higher means more risk
       - name: drawdown_from_52w_high_pct
-        description: How far the stock is below its 52-week high (negative number)
+        description: How far the stock is below its highest price in the last year
       - name: golden_cross
-        description: 1 on the day the 30-day average crosses above the 90-day average (bullish signal)
+        description: Set to 1 on the day the short-term trend turns positive (bullish signal)
       - name: death_cross
-        description: 1 on the day the 30-day average crosses below the 90-day average (bearish signal)
+        description: Set to 1 on the day the short-term trend turns negative (bearish signal)
 
   - name: mart_smi__risk_return_summary
     description: >
-      A summary scorecard for each of the 20 SMI companies — one row per stock.
+      A one-row-per-stock summary of risk and return across the full history.
 
-      Answers the fundamental question in equity investing: "Am I being compensated
-      enough for the risk I am taking?" Each stock's annualised return is shown
-      alongside its average volatility, so you can immediately see which stocks
-      delivered strong returns with low risk (top-right of a risk/return scatter plot)
-      versus those that were volatile but went nowhere.
+      The key question in investing is: did this stock reward me enough for the
+      risk I took? This table helps answer that by showing each stock's annual
+      return alongside its average volatility.
 
-      Used by the Risk Monitor dashboard for the risk/return scatter plot,
-      volatility rankings, and period return comparisons (1 month, 3 months, YTD).
+      Stocks in the top-right of a risk/return chart delivered strong returns
+      with manageable risk. Stocks in the bottom-right were volatile but did not
+      go anywhere — a bad deal for investors.
 
     columns:
       - name: ticker
-        description: Stock ticker symbol
+        description: Stock symbol
         tests: [not_null, unique]
       - name: company_name
         description: Company name
@@ -72,20 +66,20 @@ models:
         description: Industry sector
       - name: cagr_pct
         description: >
-          Compound Annual Growth Rate — the annualised return from the first to last
-          available trading day. This is how professional investors compare returns
-          across different time periods.
+          Annual return from start to end of the available data.
+          For example 12.5 means the stock grew 12.5% per year on average.
       - name: avg_volatility_30d
-        description: Average annualised volatility across the full period — measures overall riskiness
+        description: Average daily risk level across the full period
       - name: max_drawdown_pct
-        description: Worst peak-to-trough decline seen over the full period
+        description: The worst drop from a peak seen during the full period
       - name: sharpe_proxy
         description: >
-          Return divided by volatility — a simplified Sharpe ratio showing return per unit
-          of risk taken. Higher is better. A ratio above 1.0 is generally considered good.
+          Return divided by risk. Higher is better.
+          A value above 1.0 means the stock returned more than one unit of gain
+          for every unit of risk taken.
       - name: return_1m_pct
-        description: Total return over the last calendar month
+        description: Return over the last month
       - name: return_3m_pct
-        description: Total return over the last 3 months
+        description: Return over the last 3 months
       - name: return_ytd_pct
-        description: Total return since January 1st of the current year
+        description: Return since January 1st of this year

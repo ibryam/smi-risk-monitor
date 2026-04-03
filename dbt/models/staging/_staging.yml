@@ -3,20 +3,19 @@ version: 2
 models:
   - name: stg_smi__daily_prices
     description: >
-      Daily stock prices for all 20 companies in the Swiss Market Index (SMI).
-      Each row represents one company on one trading day, with the opening price,
-      closing price, highest and lowest price of the day, and number of shares traded.
-      Data is sourced from Yahoo Finance and refreshed every weekday morning.
-      Invalid rows (missing or zero prices) are removed at this stage.
+      Daily stock prices for all 20 SMI companies, cleaned and ready to use.
+      Bad rows are removed here — for example rows where the price is missing or zero.
+      All column names are standardised at this stage.
+      Data is refreshed every weekday morning.
 
     columns:
       - name: date
-        description: The trading date
+        description: Trading date
         tests:
           - not_null
 
       - name: ticker
-        description: Stock ticker symbol used by Yahoo Finance (e.g. NESN.SW for Nestlé)
+        description: Stock symbol (e.g. NESN.SW for Nestlé)
         tests:
           - not_null
 
@@ -34,17 +33,17 @@ models:
               strictly: true
 
       - name: high_price
-        description: Highest traded price during the day in CHF
+        description: Highest price during the trading day in CHF
         tests:
           - not_null
 
       - name: low_price
-        description: Lowest traded price during the day in CHF
+        description: Lowest price during the trading day in CHF
         tests:
           - not_null
 
       - name: close_price
-        description: Final traded price at market close in CHF
+        description: Final price at market close in CHF
         tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_between:
@@ -52,16 +51,16 @@ models:
               strictly: true
 
       - name: volume
-        description: Total number of shares traded during the day
+        description: Number of shares traded during the day
         tests:
           - not_null
 
       - name: ingested_at
-        description: Timestamp of when this record was loaded into the data warehouse
+        description: When this record was saved to the database
+        tests:
+          - not_null
 
   - name: stg_smi__benchmarks
     description: >
-      Daily index levels for two market benchmarks: the SMI Index (^SSMI), which
-      tracks the 20 largest Swiss companies, and the S&P 500 (^GSPC), which tracks
-      the 500 largest US companies. Used to compare individual stock performance
-      against the broader market.
+      Daily price levels for the SMI Index and S&P 500, cleaned and ready to use.
+      These are used to compare how individual stocks performed against the overall market.

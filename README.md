@@ -1,117 +1,93 @@
 # SMI Risk Monitor
 
-An end-to-end analytics engineering project monitoring the **Swiss Market Index (SMI)** — the 20 largest and most liquid companies listed on the SIX Swiss Exchange.
+A data project that tracks daily stock prices and risk metrics for all 20 companies in the Swiss Market Index (SMI).
 
-Built to demonstrate production-grade analytics engineering practices: automated data ingestion, layered dbt transformations, data quality testing, and interactive dashboards.
-
-**→ [Browse the interactive data model (dbt docs)](https://ibryam.github.io/smi-risk-monitor)**
+**→ [View the interactive data model](https://ibryam.github.io/smi-risk-monitor)**
 
 ---
 
-## Project Purpose
+## What it does
 
-This project analyzes daily equity data for SMI constituents including Nestlé, Roche, Novartis, UBS, ABB, Zurich Insurance, and others. It surfaces risk metrics relevant to Swiss financial institutions — rolling volatility, drawdown analysis, moving average crossover signals, and risk-adjusted return comparisons against the SMI Index and S&P 500.
+Every weekday morning, the project automatically:
+- Downloads the latest prices for all 20 SMI stocks plus the SMI Index and S&P 500
+- Saves the data to Google BigQuery
+- Calculates risk metrics: volatility, drawdown, moving averages, daily returns
+- Updates the Tableau dashboard
 
----
-
-## Architecture
-
-```
-Yahoo Finance (free stock data)
-          │
-          ▼
-    Python ingestion script
-    (runs every weekday at 09:00 CET via GitHub Actions)
-          │
-          ▼
-   Google BigQuery
-   ├── smi_raw          ← prices as downloaded
-   ├── smi_staging      ← cleaned and validated
-   ├── smi_intermediate ← risk metrics calculated
-   └── smi_marts        ← Tableau reads from here
-          │
-          ▼
-   Tableau Public dashboard
-```
-
-**→ [Plain-English explanation of the pipeline](docs/architecture.md)**
-
-**Automated daily refresh:** GitHub Actions runs the full pipeline each morning at zero cost — ingestion, dbt transformations, data quality tests, and dbt docs deployment.
+No manual work needed. Everything runs on a schedule inside GitHub.
 
 ---
 
-## Stack
+## Tools used
 
-| Layer | Tool |
-|-------|------|
-| Data source | Yahoo Finance via `yfinance` |
-| Storage | Google BigQuery (free tier) |
-| Transformation | dbt Core |
-| Orchestration | GitHub Actions |
-| Visualization | Tableau Public |
-| Data model docs | GitHub Pages |
+| What | Tool |
+|------|------|
+| Stock data | Yahoo Finance (free) |
+| Database | Google BigQuery |
+| Data transformations | dbt Core |
+| Scheduling | GitHub Actions |
+| Dashboard | Tableau Public |
+| Documentation | GitHub Pages |
 
 ---
 
-## Repository Structure
+## Project structure
 
 ```
 smi-risk-monitor/
-├── ingestion/            # Python pipeline: Yahoo Finance → BigQuery
-├── dbt/                  # dbt project
+├── ingestion/        # Downloads stock data from Yahoo Finance to BigQuery
+├── dbt/              # Transforms and calculates metrics in BigQuery
 │   ├── models/
-│   │   ├── staging/      # Data cleaning and validation
-│   │   ├── intermediate/ # Risk metrics: returns, volatility, drawdown
-│   │   └── marts/        # Business-ready tables for Tableau
-│   ├── seeds/            # Static reference data (SMI sectors)
-│   └── tests/            # Custom data quality tests
-├── docs/                 # Architecture documentation
-├── .github/workflows/    # GitHub Actions: daily pipeline + dbt docs
-└── DECISIONS.md          # Architecture decisions and trade-offs
+│   │   ├── staging/      # Data cleaning
+│   │   ├── intermediate/ # Risk calculations
+│   │   └── marts/        # Final tables for the dashboard
+│   └── seeds/            # Static data (company sectors)
+├── docs/             # How the project works
+└── DECISIONS.md      # Why we built it this way
 ```
 
 ---
 
-## Data Coverage
+## Stocks tracked
 
-- **20 SMI constituents**: ABB, Alcon, Geberit, Givaudan, Holcim, Lonza, Nestlé, Novartis, Partners Group, Richemont, Roche, Sandoz, SGS, Sika, Sonova, Straumann, Swiss Life, Swiss Re, UBS, Zurich Insurance
-- **2 benchmarks**: SMI Index (^SSMI), S&P 500 (^GSPC)
-- **History**: 2 years of daily data
-- **Refresh**: Every weekday morning
+ABB · Alcon · Geberit · Givaudan · Holcim · Lonza · Nestlé · Novartis · Partners Group · Richemont · Roche · Sandoz · SGS · Sika · Sonova · Straumann · Swiss Life · Swiss Re · UBS · Zurich Insurance
+
+Plus two market benchmarks: SMI Index and S&P 500
 
 ---
 
-## Risk Metrics
+## Risk metrics calculated
 
-| Metric | Description |
-|--------|-------------|
-| Rolling volatility (30/60/90d) | Annualised price volatility — core risk measure |
-| Drawdown from 52-week high | How far a stock has fallen from its recent peak |
-| CAGR | Compound annual return over the full period |
-| Sharpe proxy | Return per unit of risk taken |
-| SMA crossover | Golden cross / death cross momentum signals |
+| Metric | What it tells you |
+|--------|------------------|
+| Volatility (30/60/90 day) | How much the stock price swings — higher means more risk |
+| Drawdown | How far the stock has dropped from its recent high |
+| Daily return | Percentage gain or loss each day |
+| Moving averages | Short and long-term price trends |
+| Golden/Death cross | When trends turn positive or negative |
+| CAGR | Annual return over the full period |
+| Sharpe ratio | Return earned per unit of risk taken |
 
 ---
 
 ## Roadmap
 
-- [x] Repository setup
-- [x] Python ingestion script (yfinance → BigQuery)
-- [x] GitHub Actions daily schedule
-- [x] dbt staging models
-- [x] dbt intermediate models
-- [x] dbt mart models + custom tests
-- [x] dbt docs on GitHub Pages
+- [x] GitHub repository setup
+- [x] Automated daily data download
+- [x] Data cleaning and validation
+- [x] Risk metric calculations
+- [x] Dashboard-ready tables
+- [x] Interactive data model documentation
 - [ ] Tableau Public dashboard
 
 ---
 
-## Setup
+## How it works
 
-See [docs/architecture.md](docs/architecture.md) for a full explanation of how the pipeline works.
+See [docs/architecture.md](docs/architecture.md) for a plain-English explanation of the pipeline.
 
-To run locally, copy `dbt/profiles.yml.example` to `dbt/profiles.yml` and add your BigQuery service account path.
+To run locally, copy `dbt/profiles.yml.example` to `dbt/profiles.yml` and add your BigQuery credentials.
 
 ---
 
-*Built as part of an analytics engineering portfolio targeting Swiss financial and pharmaceutical companies.*
+*Part of an analytics engineering portfolio. Built to demonstrate data engineering skills for Swiss financial companies.*

@@ -1,49 +1,39 @@
-# Architecture Decisions
+# Key Decisions
 
-This document explains the key design choices made in this project and the reasoning behind them.
-
----
-
-## Data Source: Yahoo Finance (yfinance)
-
-**Decision:** Use `yfinance` over paid providers (Alpha Vantage, Polygon, Bloomberg).
-
-**Reason:** For a daily OHLCV portfolio project, Yahoo Finance provides sufficient data quality and history (20+ years). Paid APIs add cost and complexity without meaningful benefit at this scale. The trade-off is that Yahoo Finance has no SLA — if the API changes, the ingestion script needs updating. Acceptable for a portfolio project; in production, a paid provider with a stable API contract would be preferable.
+Why did we build it this way? This file explains the main choices made in this project.
 
 ---
 
-## Orchestration: GitHub Actions over Airflow/Prefect
+## Why Yahoo Finance and not a paid data provider?
 
-**Decision:** Use GitHub Actions cron schedule instead of a managed orchestration platform.
+Yahoo Finance is free and has over 20 years of history for Swiss stocks. Paid providers like Bloomberg or Polygon cost money and add complexity. For this project the data quality is more than good enough.
 
-**Reason:** Airflow (Cloud Composer) costs ~$300/month on GCP. Prefect Cloud free tier has run limits. For a single daily pipeline with one task, GitHub Actions cron (`0 8 * * 1-5`) is free, version-controlled alongside the code, and requires zero infrastructure. The trade-off is limited observability — no native retry UI or dependency graph. Acceptable at this scale; noted as a production upgrade path.
-
----
-
-## Storage: BigQuery Raw Layer
-
-**Decision:** Land raw yfinance data in BigQuery as-is before any transformation.
-
-**Reason:** Separating ingestion from transformation means a failed dbt run never corrupts source data, and we can re-run transformations without re-pulling from Yahoo Finance. This follows the ELT (not ETL) pattern standard in modern data stacks.
+The downside: Yahoo Finance can change their API without warning, which would break the ingestion script. That is a known risk and acceptable here. A real production system at a bank would use a paid provider with a contract and guaranteed uptime.
 
 ---
 
-## dbt Incremental Models for Price Data
+## Why GitHub Actions and not Airflow?
 
-**Decision:** Use `incremental` materialization for staging price models, not `table`.
+Airflow on Google Cloud costs around $300 per month. That is too expensive for a personal project. GitHub Actions is free for public repositories and runs the pipeline on a daily schedule with no infrastructure to manage.
 
-**Reason:** Daily OHLCV data grows by ~20 rows/day (one per SMI stock). Rebuilding the full history on every dbt run is wasteful. Incremental models append only new dates, making runs faster and reducing BigQuery query costs over time.
-
----
+The downside: GitHub Actions does not have the advanced monitoring and retry features that Airflow has. For one simple daily job, that is not a problem.
 
 ---
 
-## Benchmarks in a Separate Table
+## Why save raw data before transforming it?
 
-**Decision:** Store benchmark indices (`^SSMI`, `^GSPC`) in `raw_benchmark_prices`, separate from `raw_daily_prices` which holds SMI constituent stocks.
+The raw data from Yahoo Finance is saved into BigQuery exactly as it arrives, before any changes are made. This means if something goes wrong during transformation, the original data is still safe. We can fix the transformation and run it again without downloading data a second time.
 
-**Reason:** Benchmarks are reference data; stocks are entity data. They serve different analytical purposes and have different semantics — volume for an index is meaningless, while volume for a stock is a key signal. Mixing them into one table with a `type` column saves a few lines of code but creates ambiguity in every downstream query. In a production data warehouse at a bank or asset manager, this separation would be non-negotiable. The explicit join in the mart layer makes the relationship intentional and readable.
+This is called the ELT pattern (Extract, Load, Transform) and is standard practice in modern data engineering.
 
 ---
 
-*This document is updated as new decisions are made.*
+## Why are stock prices and index prices in separate tables?
+
+Stock prices and index prices are stored in two different tables (`raw_daily_prices` and `raw_benchmark_prices`). They could have been combined into one table with a column to tell them apart, but that would cause confusion.
+
+A stock's trading volume is meaningful — it tells you how actively it was bought and sold. An index like the SMI does not actually trade, so its volume number means nothing. Keeping them separate makes the data cleaner and easier to work with.
+
+---
+
+*This file is updated when new decisions are made.*

@@ -3,11 +3,11 @@ version: 2
 models:
   - name: int_smi__daily_returns
     description: >
-      How much did each stock gain or lose each day?
-      This model calculates the daily percentage change in closing price for every
-      SMI company. For example, if Nestlé closed at 98 CHF yesterday and 100 CHF
-      today, the daily return is +2.04%. These return figures are the foundation
-      for all risk calculations downstream.
+      How much did each stock go up or down each day?
+      This table calculates the daily percentage change for every SMI stock.
+      For example: if Nestlé closed at 98 CHF yesterday and 100 CHF today,
+      the return is +2.04%.
+      These daily changes are the starting point for all risk calculations.
 
     columns:
       - name: date
@@ -15,27 +15,27 @@ models:
       - name: ticker
         tests: [not_null]
       - name: daily_return_pct
-        description: Percentage gain or loss vs the previous trading day
+        description: Percentage change vs the previous trading day (e.g. 2.04 means +2.04%)
         tests: [not_null]
       - name: log_return_pct
         description: >
-          Logarithmic return — a mathematically preferred way to measure returns
-          when comparing across different time periods or running statistical analysis
+          A different way to measure the same daily change.
+          Used in risk calculations because it works better with statistics.
 
   - name: int_smi__rolling_metrics
     description: >
-      Risk and trend indicators for each SMI stock, recalculated every day.
+      Risk and trend numbers for each SMI stock, updated every day.
 
-      Volatility measures how much a stock's price swings day-to-day. A stock with
-      high volatility (e.g. 40%) moves dramatically and carries more risk. Swiss blue
-      chips like Nestlé typically show lower volatility (15-20%) than smaller stocks.
+      Volatility shows how much a stock's price moves around day to day.
+      A stock with 40% volatility swings a lot and carries more risk.
+      Swiss blue chips like Nestlé typically sit around 15-20%.
 
-      Moving averages smooth out daily noise to show the underlying price trend.
-      When the 30-day average crosses above the 90-day average, it often signals
-      positive momentum (known as a "golden cross" in finance).
+      Moving averages smooth out the daily noise to show the general price trend.
+      When the 30-day average rises above the 90-day average, traders call this
+      a "golden cross" — a sign that momentum is turning positive.
 
-      Drawdown shows how far a stock has fallen from its recent peak — a key measure
-      of downside risk used by portfolio managers at Swiss banks and asset managers.
+      Drawdown shows how far a stock has dropped from its recent high.
+      For example, -15% means the stock is 15% below its best price in the last year.
 
     columns:
       - name: date
@@ -44,10 +44,11 @@ models:
         tests: [not_null]
       - name: volatility_30d
         description: >
-          Annualised price volatility over the last 30 trading days.
-          Higher = more risk. Expressed as a percentage (e.g. 20 = 20% annual volatility).
+          How much the stock price moved over the last 30 trading days.
+          Shown as an annual percentage (e.g. 20 means 20% per year).
+          Higher = more risk.
       - name: volatility_90d
-        description: Annualised price volatility over the last 90 trading days
+        description: Same as volatility_30d but measured over 90 trading days
       - name: sma_30d
         description: Average closing price over the last 30 trading days
       - name: sma_90d
@@ -55,4 +56,4 @@ models:
       - name: drawdown_from_52w_high_pct
         description: >
           How far the current price is below the highest price of the last 52 weeks.
-          Always zero or negative — e.g. -15 means the stock is 15% below its yearly peak.
+          Always zero or negative. For example -15 means the stock is 15% below its yearly peak.
