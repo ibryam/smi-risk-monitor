@@ -68,6 +68,20 @@ If the calculation logic changes, only the intermediate and mart layers need to 
 
 ---
 
+## The dashboard
+
+The Tableau dashboard has three tabs, each built from the mart tables:
+
+| Tab | Main chart | Data source |
+|-----|-----------|-------------|
+| Performance | Normalized price line chart — all stocks rebased to 100 for direct comparison | `mart_smi__stock_performance` |
+| Risk Monitor | Volatility heatmap, risk/return scatter, max drawdown bar chart | `mart_smi__risk_return_summary` |
+| Deep Dive | OHLC candlestick chart + volume bars for a single selected stock | `mart_smi__stock_performance` |
+
+The normalized price makes it possible to compare stocks with very different price levels on the same chart. For example, Givaudan trades around 3,500 CHF while Sandoz trades around 30 CHF. By starting both at 100 on the same date, you can directly compare their performance.
+
+---
+
 ## How to read the data model diagram
 
 The interactive diagram at [ibryam.github.io/smi-risk-monitor](https://ibryam.github.io/smi-risk-monitor) shows how data moves through the project.

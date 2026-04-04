@@ -36,4 +36,18 @@ A stock's trading volume is meaningful — it tells you how actively it was boug
 
 ---
 
+## Why Tableau Public and not Tableau Server or Power BI?
+
+Tableau Public is free and allows publishing interactive dashboards that anyone can view in a browser without an account. Tableau Server costs hundreds of dollars per month. Power BI is cheaper but Tableau is more widely used at Swiss financial institutions.
+
+The downside: Tableau Public dashboards are visible to everyone — no access control. For a portfolio project this is intentional. A production system at a bank would use Tableau Server with row-level security.
+
+---
+
+## Why OHLC candlestick charts and not simple line charts for the Deep Dive tab?
+
+A simple line chart only shows the closing price. A candlestick chart shows four data points per day — open, high, low, close — which tells a richer story about what happened during the trading day. High trading volume combined with a large price range signals significant market activity that a line chart would hide completely.
+
+---
+
 *This file is updated when new decisions are made.*

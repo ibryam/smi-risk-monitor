@@ -2,6 +2,8 @@
 
 A data project that tracks daily stock prices and risk metrics for all 20 companies in the Swiss Market Index (SMI).
 
+**→ [View the Tableau Dashboard](https://public.tableau.com/app/profile/ibryam/viz/SMIRiskMonitor/Performance)**
+
 **→ [View the interactive data model](https://ibryam.github.io/smi-risk-monitor)**
 
 ---
@@ -26,7 +28,7 @@ No manual work needed. Everything runs on a schedule inside GitHub.
 | Database | Google BigQuery |
 | Data transformations | dbt Core |
 | Scheduling | GitHub Actions |
-| Dashboard | Tableau Public |
+| Dashboard | Tableau Public (3 interactive tabs) |
 | Documentation | GitHub Pages |
 
 ---
@@ -56,6 +58,18 @@ Plus two market benchmarks: SMI Index and S&P 500
 
 ---
 
+## Dashboard
+
+Three tabs, each answering a different question:
+
+| Tab | Question it answers |
+|-----|-------------------|
+| Performance | How did each SMI stock perform over time compared to the market? |
+| Risk Monitor | Which stocks carry the most risk, and are they rewarding investors for it? |
+| Deep Dive | What happened to a specific stock day by day — price, volume, trends? |
+
+---
+
 ## Risk metrics calculated
 
 | Metric | What it tells you |
@@ -78,7 +92,7 @@ Plus two market benchmarks: SMI Index and S&P 500
 - [x] Risk metric calculations
 - [x] Dashboard-ready tables
 - [x] Interactive data model documentation
-- [ ] Tableau Public dashboard
+- [x] Tableau Public dashboard (3 tabs: Performance, Risk Monitor, Deep Dive)
 
 ---
 
