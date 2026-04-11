@@ -182,7 +182,8 @@ def run_pipeline(client, table_id: str, tickers: dict, schema: list, name_field:
         start_date = (datetime.now(timezone.utc) - timedelta(days=730)).strftime("%Y-%m-%d")
         log.info(f"[{table_id}] First run — loading full history from {start_date}")
 
-    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # yfinance end is exclusive — add 1 day so today's close is included
+    end_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
 
     if start_date >= end_date:
         log.info(f"[{table_id}] Already up to date — nothing to load")
