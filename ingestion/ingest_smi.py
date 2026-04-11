@@ -116,38 +116,43 @@ def get_last_loaded_date(client: bigquery.Client, table_id: str) -> str | None:
 
 
 def fetch_ohlcv(tickers: dict, start_date: str, end_date: str, name_field: str) -> pd.DataFrame:
-    """Pull OHLCV from Yahoo Finance for a given dict of {ticker: name}."""
-    ticker_list = list(tickers.keys())
-    log.info(f"Fetching {len(ticker_list)} tickers from {start_date} to {end_date}")
-
-    raw = yf.download(
-        tickers=ticker_list,
-        start=start_date,
-        end=end_date,
-        auto_adjust=True,
-        progress=False,
-        group_by="ticker",
-    )
+    """Pull OHLCV from Yahoo Finance one ticker at a time to avoid rate limits."""
+    log.info(f"Fetching {len(tickers)} tickers from {start_date} to {end_date}")
 
     rows = []
-    for ticker in ticker_list:
-        try:
-            # yfinance returns a flat DataFrame for a single ticker
-            df = (raw[ticker] if len(ticker_list) > 1 else raw).dropna(how="all").reset_index()
-            df["ticker"]    = ticker
-            df[name_field]  = tickers[ticker]
-            df = df.rename(columns={
-                "Date":   "date",
-                "Open":   "open",
-                "High":   "high",
-                "Low":    "low",
-                "Close":  "close",
-                "Volume": "volume",
-            })
-            df["ingested_at"] = datetime.now(timezone.utc)
-            rows.append(df[["date", "ticker", name_field, "open", "high", "low", "close", "volume", "ingested_at"]])
-        except Exception as e:
-            log.warning(f"Skipping {ticker}: {e}")
+    for ticker, name in tickers.items():
+        for attempt in range(1, 4):
+            try:
+                df = yf.Ticker(ticker).history(
+                    start=start_date,
+                    end=end_date,
+                    auto_adjust=True,
+                ).reset_index()
+
+                if df.empty:
+                    log.info(f"  {ticker}: no data in range")
+                    break
+
+                df["ticker"]   = ticker
+                df[name_field] = name
+                df = df.rename(columns={
+                    "Date":   "date",
+                    "Open":   "open",
+                    "High":   "high",
+                    "Low":    "low",
+                    "Close":  "close",
+                    "Volume": "volume",
+                })
+                df["ingested_at"] = datetime.now(timezone.utc)
+                rows.append(df[["date", "ticker", name_field, "open", "high", "low", "close", "volume", "ingested_at"]])
+                log.info(f"  {ticker}: {len(df)} rows")
+                break
+            except Exception as e:
+                log.warning(f"  {ticker} attempt {attempt}/3 failed: {e}")
+                if attempt < 3:
+                    time.sleep(10 * attempt)
+
+        time.sleep(3)  # pause between tickers to avoid rate limiting
 
     if not rows:
         log.warning("No data fetched")
