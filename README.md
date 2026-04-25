@@ -4,13 +4,13 @@ A data project that tracks daily stock prices and risk metrics for all 20 compan
 
 **→ [View the Tableau Dashboard](https://public.tableau.com/app/profile/ibryam/viz/SMIRiskMonitor/Performance)**
 
-**→ [View the interactive data model](https://ibryam.github.io/smi-risk-monitor)**
+**→ [View portfolio](https://ibryam.github.io)**
 
 ---
 
 ## What it does
 
-Every weekday morning, the project automatically:
+Every weekday after market close (17:00 UTC / SIX closing time), the project automatically:
 - Downloads the latest prices for all 20 SMI stocks plus the SMI Index and S&P 500
 - Saves the data to Google BigQuery
 - Calculates risk metrics: volatility, drawdown, moving averages, daily returns
@@ -18,13 +18,17 @@ Every weekday morning, the project automatically:
 
 No manual work needed. Everything runs on a schedule inside GitHub.
 
+> **Ingestion status:** Yahoo Finance started blocking GitHub Actions IP ranges in April 2026.
+> Migrating ingestion to [Twelve Data API](https://twelvedata.com) (free tier, API-key based, not IP-restricted).
+> Last successful data load: 2026-04-02. Dashboard data is accurate up to that date.
+
 ---
 
 ## Tools used
 
 | What | Tool |
 |------|------|
-| Stock data | Yahoo Finance (free) |
+| Stock data | Yahoo Finance → migrating to Twelve Data API |
 | Database | Google BigQuery |
 | Data transformations | dbt Core |
 | Scheduling | GitHub Actions |
@@ -37,7 +41,7 @@ No manual work needed. Everything runs on a schedule inside GitHub.
 
 ```
 smi-risk-monitor/
-├── ingestion/        # Downloads stock data from Yahoo Finance to BigQuery
+├── ingestion/        # Downloads stock data to BigQuery (migrating to Twelve Data API)
 ├── dbt/              # Transforms and calculates metrics in BigQuery
 │   ├── models/
 │   │   ├── staging/      # Data cleaning
@@ -93,6 +97,7 @@ Three tabs, each answering a different question:
 - [x] Dashboard-ready tables
 - [x] Interactive data model documentation
 - [x] Tableau Public dashboard (3 tabs: Performance, Risk Monitor, Deep Dive)
+- [ ] Migrate ingestion from Yahoo Finance to Twelve Data API (unblocks daily refresh)
 
 ---
 
